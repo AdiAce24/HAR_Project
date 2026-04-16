@@ -108,20 +108,6 @@ if "df" not in st.session_state:
     st.session_state.df = base_df
 
 df = st.session_state.df
-
-df['timestamp'] = pd.to_datetime("2024-01-01") + pd.to_timedelta(
-    np.random.randint(0, 86400, size=len(df)), unit='s'
-)
-
-df = df.sort_values('timestamp')
-
-chunk_size = 1200
-df['patient_id'] = (df.index // chunk_size) + 1
-df['patient_id'] = df['patient_id'].apply(lambda x: f"Patient {x}")
-
-# ---------------------------
-# SIDEBAR
-# ---------------------------
 st.sidebar.title("🧑‍⚕️ Controls")
 
 mode = st.sidebar.radio(
@@ -131,105 +117,26 @@ mode = st.sidebar.radio(
 
 patients = df['patient_id'].unique().tolist()
 selected_patient = st.sidebar.selectbox("Select Patient", patients)
+# ---------------------------
+# ACTIVITY CONTROL (FIXED)
+# ---------------------------
 
-activities = df['activity'].unique().tolist()
+all_activities = df['activity'].unique().tolist()
+
+# 🔥 Initialize ONLY ON FIRST LOAD
+if "selected_activities" not in st.session_state:
+    st.session_state.selected_activities = all_activities.copy()
+
+# Multiselect controlled by session state
 selected_activities = st.sidebar.multiselect(
     "Select Activities",
-    activities,
-    default=activities
+    all_activities,
+    key="selected_activities"
 )
-
-# ---------------------------
-# DELETE / ADD SECTION
-# ---------------------------
-
-# 🗑 Remove Activity
-st.markdown("### 🗑 Remove Activity")
-
-unique_activities = df[
-    df['patient_id'] == selected_patient
-]['activity'].unique()
-
-for act in unique_activities:
-    if st.button(f"Remove {act}"):
-
-        st.session_state.df = st.session_state.df[
-            ~(
-                (st.session_state.df['activity'] == act) &
-                (st.session_state.df['patient_id'] == selected_patient)
-            )
-        ]
-
-        st.rerun()
-
-
-# ➕ Add Activity
-st.markdown("### ➕ Add Activity Back")
-
-all_activities = pd.read_csv(file_path)['activity'].unique()
-
-activity_to_add = st.selectbox("Select Activity to Add", all_activities)
-
-if st.button("Add Activity"):
-
-    original_df = pd.read_csv(file_path)
-
-    rows_to_add = original_df[original_df['activity'] == activity_to_add]
-
-    st.session_state.df = pd.concat(
-        [st.session_state.df, rows_to_add],
-        ignore_index=True
-    )
-
-    st.rerun()
-
-
-# ---------------------------
-# 🔥 NOW FILTER UPDATED DATA
-# ---------------------------
-
-df = st.session_state.df  # VERY IMPORTANT
-
 filtered_df = df[
     (df['patient_id'] == selected_patient) &
     (df['activity'].isin(selected_activities))
 ]
-
-if filtered_df.empty:
-    filtered_df = df[df['patient_id'] == selected_patient]
-
-st.markdown("### 🗑 Remove Activity")
-
-unique_activities = filtered_df['activity'].unique()
-
-for act in unique_activities:
-    if st.button(f"Remove {act}"):
-
-        st.session_state.df = st.session_state.df[
-            st.session_state.df['activity'] != act
-        ]
-
-        st.rerun()
-
-st.markdown("### ➕ Add Activity Back")
-
-all_activities = pd.read_csv(file_path)['activity'].unique()
-
-activity_to_add = st.selectbox("Select Activity to Add", all_activities)
-
-if st.button("Add Activity"):
-
-    original_df = pd.read_csv(file_path)
-
-    rows_to_add = original_df[original_df['activity'] == activity_to_add]
-
-    st.session_state.df = pd.concat(
-        [st.session_state.df, rows_to_add],
-        ignore_index=True
-    )
-
-    st.rerun()
-
 if filtered_df.empty:
     filtered_df = df[df['patient_id'] == selected_patient]
 
@@ -263,15 +170,6 @@ st.markdown(f"""
         Monitoring: <b>{selected_patient}</b> • Real-time behavior analytics
     </p>
 </div>
-""", unsafe_allow_html=True)
-st.markdown("""
-<span style="color:red; font-weight:bold; animation: blink 1s infinite;">● LIVE</span>
-
-<style>
-@keyframes blink {
-  50% { opacity: 0; }
-}
-</style>
 """, unsafe_allow_html=True)
 # ---------------------------
 # KPI CARDS (FIXED)
