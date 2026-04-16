@@ -92,7 +92,22 @@ st.markdown("""
 import os
 
 file_path = os.path.join("output", "final_data.csv")
-df = pd.read_csv(file_path)
+if "df" not in st.session_state:
+    base_df = pd.read_csv(file_path)
+
+    base_df['timestamp'] = pd.to_datetime("2024-01-01") + pd.to_timedelta(
+        np.random.randint(0, 86400, size=len(base_df)), unit='s'
+    )
+
+    base_df = base_df.sort_values('timestamp')
+
+    chunk_size = 1200
+    base_df['patient_id'] = (base_df.index // chunk_size) + 1
+    base_df['patient_id'] = base_df['patient_id'].apply(lambda x: f"Patient {x}")
+
+    st.session_state.df = base_df
+
+df = st.session_state.df
 
 df['timestamp'] = pd.to_datetime("2024-01-01") + pd.to_timedelta(
     np.random.randint(0, 86400, size=len(df)), unit='s'
@@ -125,12 +140,95 @@ selected_activities = st.sidebar.multiselect(
 )
 
 # ---------------------------
-# FILTER DATA
+# DELETE / ADD SECTION
 # ---------------------------
+
+# 🗑 Remove Activity
+st.markdown("### 🗑 Remove Activity")
+
+unique_activities = df[
+    df['patient_id'] == selected_patient
+]['activity'].unique()
+
+for act in unique_activities:
+    if st.button(f"Remove {act}"):
+
+        st.session_state.df = st.session_state.df[
+            ~(
+                (st.session_state.df['activity'] == act) &
+                (st.session_state.df['patient_id'] == selected_patient)
+            )
+        ]
+
+        st.rerun()
+
+
+# ➕ Add Activity
+st.markdown("### ➕ Add Activity Back")
+
+all_activities = pd.read_csv(file_path)['activity'].unique()
+
+activity_to_add = st.selectbox("Select Activity to Add", all_activities)
+
+if st.button("Add Activity"):
+
+    original_df = pd.read_csv(file_path)
+
+    rows_to_add = original_df[original_df['activity'] == activity_to_add]
+
+    st.session_state.df = pd.concat(
+        [st.session_state.df, rows_to_add],
+        ignore_index=True
+    )
+
+    st.rerun()
+
+
+# ---------------------------
+# 🔥 NOW FILTER UPDATED DATA
+# ---------------------------
+
+df = st.session_state.df  # VERY IMPORTANT
+
 filtered_df = df[
     (df['patient_id'] == selected_patient) &
     (df['activity'].isin(selected_activities))
 ]
+
+if filtered_df.empty:
+    filtered_df = df[df['patient_id'] == selected_patient]
+
+st.markdown("### 🗑 Remove Activity")
+
+unique_activities = filtered_df['activity'].unique()
+
+for act in unique_activities:
+    if st.button(f"Remove {act}"):
+
+        st.session_state.df = st.session_state.df[
+            st.session_state.df['activity'] != act
+        ]
+
+        st.rerun()
+
+st.markdown("### ➕ Add Activity Back")
+
+all_activities = pd.read_csv(file_path)['activity'].unique()
+
+activity_to_add = st.selectbox("Select Activity to Add", all_activities)
+
+if st.button("Add Activity"):
+
+    original_df = pd.read_csv(file_path)
+
+    rows_to_add = original_df[original_df['activity'] == activity_to_add]
+
+    st.session_state.df = pd.concat(
+        [st.session_state.df, rows_to_add],
+        ignore_index=True
+    )
+
+    st.rerun()
 
 if filtered_df.empty:
     filtered_df = df[df['patient_id'] == selected_patient]
