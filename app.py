@@ -34,12 +34,6 @@ st.markdown("""
 <style>
 
 /* 🔥 KPI CARD FIX */
-[data-testid="column"] {
-    background: linear-gradient(145deg, #0f172a, #1e293b);
-    padding: 15px;
-    border-radius: 16px;
-    box-shadow: 0px 6px 20px rgba(0,0,0,0.6);
-}
 .stApp {
     background: radial-gradient(circle at top, #0f172a, #020617);
 }
@@ -108,11 +102,11 @@ if "df" not in st.session_state:
     st.session_state.df = base_df
 
 df = st.session_state.df
-st.sidebar.title("🧑‍⚕️ Controls")
+st.sidebar.title("Controls")
 
 mode = st.sidebar.radio(
     "Select Mode",
-    ["👩‍⚕️ Doctor Mode", "🧑‍💻 Admin Mode"]
+    ["Doctor Mode", "Admin Mode"]
 )
 
 patients = df['patient_id'].unique().tolist()
@@ -145,13 +139,13 @@ high_risk = (filtered_df['risk_level'] == "High Risk").sum()
 
 def get_status(score):
     if score > 1:
-        return "🟢 Stable"
+        return "Stable", "status-low"
     elif score > 0:
-        return "🟡 Moderate"
+        return "Moderate", "status-mid"
     else:
-        return "🔴 High Risk"
+        return "High Risk", "status-high"
 
-status = get_status(score)
+status, status_class = get_status(score)
 
 # ---------------------------
 # PREMIUM HEADER
@@ -165,7 +159,7 @@ st.markdown(f"""
     box-shadow: 0px 6px 20px rgba(0,0,0,0.6);
     margin-bottom: 20px;
 ">
-    <h2 style="margin:0;">🏥 Elderly Care Monitoring System</h2>
+    <h2 style="margin:0;">Elderly Care Monitoring System</h2>
     <p style="margin:0; color:#94a3b8;">
         Monitoring: <b>{selected_patient}</b> • Real-time behavior analytics
     </p>
@@ -176,6 +170,7 @@ st.markdown(f"""
 # ---------------------------
 col1, col2, col3, col4 = st.columns(4)
 
+# Status color
 if "Stable" in status:
     status_class = "status-low"
 elif "Moderate" in status:
@@ -187,34 +182,45 @@ else:
 # CARD 1
 # ---------------------------
 with col1:
-    st.markdown("<div class='card-title'>📊 Total Observations</div>", unsafe_allow_html=True)
-    animate_value(len(filtered_df))
+    st.markdown(f"""
+    <div class='card'>
+        <div class='card-title'>Total Observations</div>
+        <div class='card-value'>{len(filtered_df)}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ---------------------------
 # CARD 2
 # ---------------------------
 with col2:
-    st.markdown("<div class='card-title'>🩺 Patient Condition</div>", unsafe_allow_html=True)
-    st.markdown(
-        f"<div class='card-value {status_class}'>{status}</div>",
-        unsafe_allow_html=True
-    )
+    st.markdown(f"""
+    <div class='card'>
+        <div class='card-title'>Patient Condition</div>
+        <div class='card-value {status_class}'>{status}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ---------------------------
 # CARD 3
 # ---------------------------
 with col3:
-    st.markdown("<div class='card-title'>🏃 Activity Types</div>", unsafe_allow_html=True)
-    animate_value(filtered_df['activity'].nunique())
+    st.markdown(f"""
+    <div class='card'>
+        <div class='card-title'>Activity Types</div>
+        <div class='card-value'>{filtered_df['activity'].nunique()}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ---------------------------
 # CARD 4
 # ---------------------------
 with col4:
-    st.markdown("<div class='card-title'>🚨 High Risk Events</div>", unsafe_allow_html=True)
-    animate_value(high_risk)
-
-st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class='card'>
+        <div class='card-title'>High Risk Events</div>
+        <div class='card-value'>{high_risk}</div>
+    </div>
+    """, unsafe_allow_html=True)
 # ---------------------------
 # ALERT SYSTEM (UPGRADED)
 # ---------------------------
@@ -249,7 +255,7 @@ col1, col2, col3 = st.columns(3)
 # ---------------------------
 with col1:
     with st.container():
-        st.markdown("#### 📊 Activity Distribution")
+        st.markdown("#### Activity Distribution")
 
         counts = filtered_df['activity'].value_counts().reset_index()
         counts.columns = ['activity', 'count']
@@ -264,7 +270,7 @@ with col1:
 # ---------------------------
 with col2:
     with st.container():
-        st.markdown("#### 📈 Behavior Trend")
+        st.markdown("#### Behavior Trend")
 
         fig = px.line(filtered_df.head(500), x='timestamp', y='behavior_score')
         fig.update_layout(template="plotly_dark")
@@ -276,7 +282,7 @@ with col2:
 # ---------------------------
 with col3:
     with st.container():
-        st.markdown("#### 🚨 Anomaly Detection")
+        st.markdown("#### Anomaly Detection")
 
         subset = filtered_df.head(300)
 
@@ -293,7 +299,7 @@ with col3:
 # ---------------------------
 # TIME ANALYSIS
 # ---------------------------
-st.markdown("### ⏱ Activity Pattern")
+st.markdown("###Activity Pattern")
 
 hourly = filtered_df.groupby(filtered_df['timestamp'].dt.hour)['behavior_score'].mean().reset_index()
 hourly.columns = ['hour', 'behavior_score']
@@ -307,8 +313,8 @@ st.plotly_chart(fig, use_container_width=True)
 # ---------------------------
 # MODE SECTION
 # ---------------------------
-if mode == "👩‍⚕️ Doctor Mode":
-    st.markdown("### 🧠 Clinical Insights")
+if mode == "Doctor Mode":
+    st.markdown("### Clinical Insights")
     st.info(f"""
     Most common activity: {filtered_df['activity'].mode()[0]}  
     Average score: {round(score,2)}  
@@ -316,14 +322,14 @@ if mode == "👩‍⚕️ Doctor Mode":
     """)
 
 else:
-    st.markdown("### 📊 Admin Analytics")
+    st.markdown("###Admin Analytics")
     st.dataframe(filtered_df.head(50))
     st.write(filtered_df.describe())
 
 # ---------------------------
 # PATIENT COMPARISON
 # ---------------------------
-st.markdown("### 🧑‍⚕️ Patient Comparison")
+st.markdown("###Patient Comparison")
 
 patient_summary = df.groupby('patient_id')['behavior_score'].mean().reset_index()
 fig = px.bar(patient_summary, x='patient_id', y='behavior_score', color='behavior_score')
